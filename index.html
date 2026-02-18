@@ -3,572 +3,781 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Desert Strike: F-18 Simulator</title>
+    <title>F-18 Desert Storm</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; touch-action: none; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Consolas', monospace; touch-action: none; user-select: none; -webkit-user-select: none; }
         #game-container { position: relative; width: 100vw; height: 100vh; }
         
-        /* HUD */
-        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .hud-text { color: #0f0; text-shadow: 1px 1px 0 #000; font-weight: bold; position: absolute; }
-        #info-left { top: 20px; left: 20px; }
+        /* --- HUD --- */
+        #hud-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
+        
+        /* Text Info */
+        .hud-text { color: #0f0; text-shadow: 1px 1px 0 #000; font-weight: bold; position: absolute; font-size: 14px; }
+        #info-left { top: 20px; left: 20px; text-align: left; }
         #info-right { top: 20px; right: 20px; text-align: right; }
-        #center-crosshair { 
-            position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; 
-            transform: translate(-50%, -50%); border: 2px solid rgba(0, 255, 0, 0.5); border-radius: 50%;
+        #msg-center { top: 20%; width: 100%; text-align: center; color: #fff; font-size: 20px; text-shadow: 0 0 5px red; display: none; }
+
+        /* Crosshair */
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
+            transform: translate(-50%, -50%);
+            border: 2px solid rgba(0, 255, 0, 0.4); border-radius: 50%;
         }
-        #center-dot {
-            position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: #0f0; transform: translate(-50%, -50%);
-        }
-        #lock-indicator {
-            position: absolute; border: 2px solid red; width: 60px; height: 60px; border-radius: 5px; display: none; transform: translate(-50%, -50%);
-            transition: all 0.1s;
+        #crosshair::after {
+            content: ''; position: absolute; top: 50%; left: 50%; width: 2px; height: 2px; background: #0f0; transform: translate(-50%, -50%);
         }
 
-        /* CONTROLS */
-        .control-layer { position: absolute; bottom: 20px; width: 100%; height: 150px; pointer-events: auto; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; }
-        
-        /* Joystick Area */
-        #joystick-zone { width: 150px; height: 150px; background: rgba(0,0,0,0.2); border-radius: 50%; position: relative; }
-        #joystick-knob { width: 50px; height: 50px; background: rgba(255, 255, 255, 0.5); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        /* Artificial Horizon (Pitch Ladder) */
+        #horizon-container {
+            position: absolute; top: 50%; left: 50%; width: 0; height: 0; overflow: visible;
+        }
+        #pitch-ladder {
+            position: absolute; width: 200px; height: 600px; /* Tall to accommodate pitch movement */
+            left: -100px; top: -300px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .pitch-line {
+            width: 100%; height: 1px; background: rgba(0, 255, 0, 0.3); position: absolute;
+            display: flex; justify-content: space-between;
+        }
+        .pitch-line::before, .pitch-line::after {
+            content: ''; width: 10px; height: 4px; border-top: 1px solid #0f0; display: block;
+        }
+        .zero-line { background: rgba(0, 255, 0, 0.6); width: 140px; left: 30px; } 
 
-        /* Throttle & Actions */
-        #right-controls { display: flex; gap: 15px; align-items: flex-end; }
+        /* Target Box */
+        #target-box {
+            position: absolute; width: 40px; height: 40px;
+            border: 2px solid #0f0; box-sizing: border-box;
+            transform: translate(-50%, -50%); display: none;
+            transition: border-color 0.1s;
+        }
+        #target-label {
+            position: absolute; bottom: -15px; width: 100%; text-align: center; font-size: 10px; color: #0f0;
+        }
+
+        /* --- CONTROLS --- */
+        .control-layer { position: absolute; bottom: 20px; width: 100%; height: 140px; pointer-events: auto; display: flex; justify-content: space-between; padding: 0 30px; box-sizing: border-box; }
         
-        .btn { width: 60px; height: 60px; border-radius: 10px; background: rgba(0,0,0,0.5); border: 2px solid #fff; color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; user-select: none; }
+        #joystick-area { width: 120px; height: 120px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; position: relative; }
+        #stick { width: 50px; height: 50px; background: rgba(0, 255, 0, 0.3); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px #0f0; }
+
+        #buttons-area { display: flex; gap: 15px; align-items: flex-end; }
+        
+        .btn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid #fff; color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; font-size: 12px; background: rgba(0,0,0,0.5); }
         .btn:active { background: #fff; color: #000; }
-        #btn-fire { background: rgba(255, 0, 0, 0.5); border-color: red; }
-        #btn-missile { background: rgba(255, 165, 0, 0.5); border-color: orange; font-size: 10px; }
+        #btn-fire { border-color: #ff4444; color: #ff4444; }
+        #btn-fire:active { background: #ff4444; color: white; }
         
-        #throttle-container { width: 40px; height: 150px; background: rgba(0,0,0,0.3); border: 1px solid #fff; position: relative; border-radius: 5px; }
-        #throttle-fill { position: absolute; bottom: 0; width: 100%; background: linear-gradient(to top, #00f, #0ff); height: 0%; transition: height 0.1s; }
-        #throttle-label { position: absolute; width: 100%; text-align: center; top: 50%; transform: translateY(-50%) rotate(-90deg); color: white; font-size: 12px; pointer-events: none; }
+        #throttle-slider { width: 40px; height: 120px; background: rgba(0,0,0,0.5); border: 1px solid #fff; position: relative; border-radius: 4px; margin-right: 10px; }
+        #throttle-bar { position: absolute; bottom: 0; left: 0; width: 100%; background: #0088ff; height: 0%; transition: height 0.1s; }
+        #throttle-knob { position: absolute; bottom: 0; left: -5px; width: 50px; height: 20px; background: #fff; transform: translateY(50%); border-radius: 2px; text-align: center; color: black; font-size: 10px; line-height: 20px; pointer-events: none;}
 
-        #game-over { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; display: none; pointer-events: auto; }
-        h1 { margin-bottom: 20px; }
-        button#start-btn { padding: 15px 30px; font-size: 20px; cursor: pointer; }
+        /* --- MENUS --- */
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 100; pointer-events: auto; }
+        h1 { margin: 0 0 10px 0; color: #00ccff; text-shadow: 0 0 10px #00ccff; font-style: italic; }
+        p { color: #aaa; margin-bottom: 20px; text-align: center; max-width: 300px; font-size: 14px; }
+        button.start { background: #00ccff; border: none; padding: 10px 40px; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 5px; color: #000; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
     <div id="game-container">
-        <div id="hud">
+        <div id="hud-layer">
+            <div id="horizon-container">
+                <div id="pitch-ladder">
+                    </div>
+            </div>
+            
+            <div id="target-box">
+                <div id="target-label">LOCK</div>
+            </div>
+
+            <div id="crosshair"></div>
+
             <div id="info-left">
-                SPEED: <span id="hud-speed">0</span> KN<br>
-                ALT: <span id="hud-alt">0</span> FT<br>
-                FLAPS: <span id="hud-flaps">OFF</span>
+                SPD: <span id="hud-spd">0</span><br>
+                ALT: <span id="hud-alt">0</span><br>
+                THR: <span id="hud-thr">0</span>%
             </div>
             <div id="info-right">
-                OBJ: TOWER<br>
-                DIST: <span id="hud-dist">0</span>m
+                TGT: <span id="hud-tgt">NONE</span><br>
+                DIST: <span id="hud-dist">---</span>
             </div>
-            <div id="center-crosshair"></div>
-            <div id="center-dot"></div>
-            <div id="lock-indicator"></div>
+            <div id="msg-center"></div>
         </div>
 
         <div class="control-layer">
-            <div id="joystick-zone">
-                <div id="joystick-knob"></div>
+            <div id="joystick-area">
+                <div id="stick"></div>
             </div>
             
-            <div id="right-controls">
-                <div id="throttle-container">
-                    <div id="throttle-fill"></div>
-                    <div id="throttle-label">THRUST</div>
+            <div id="buttons-area">
+                <div id="throttle-slider">
+                    <div id="throttle-bar"></div>
+                    <div id="throttle-knob">THR</div>
                 </div>
-                <div style="display:flex; flex-direction: column; gap: 10px;">
-                    <div class="btn" id="btn-flaps">FLAPS</div>
-                    <div class="btn" id="btn-missile">MSL</div>
+                <div style="display:flex; flex-direction: column; gap:10px;">
+                     <div class="btn" id="btn-flaps" style="border-color: yellow; color: yellow;">FLAPS</div>
+                     <div class="btn" id="btn-missile">MSL</div>
                 </div>
                 <div class="btn" id="btn-fire">GUN</div>
             </div>
         </div>
 
-        <div id="game-over" style="display: flex;">
-            <h1 id="status-text">F-18 DESERT STRIKE</h1>
-            <p>Left Stick: Pitch/Roll | Slider: Thrust | Buttons: Fire/Flaps</p>
-            <button id="start-btn">TAKEOFF</button>
+        <div id="overlay">
+            <h1>SKY STRIKER</h1>
+            <p>Mission: Destroy the Comms Tower and Enemy Drones.</p>
+            <p>Left Stick: Pitch/Roll<br>Slider: Thrust (Keep it high!)<br>Double tap Flaps to land.</p>
+            <button class="start" id="start-btn">TAKEOFF</button>
         </div>
     </div>
 
     <script>
-        // --- GAME CONFIGURATION ---
+        // --- CONFIG & STATE ---
         const CONFIG = {
-            maxSpeed: 2.0,
-            minTakeoffSpeed: 0.6,
-            rotationSpeed: 0.03,
-            gravity: 0.005,
-            liftCoefficient: 0.006,
-            mapSize: 2000
+            turnSpeed: 1.2,
+            maxSpeed: 3.5,
+            stallSpeed: 0.8,
+            mapScale: 5000,
+            camLag: 0.1
         };
 
-        // --- STATE ---
-        let state = {
+        const state = {
+            flying: false,
             speed: 0,
             throttle: 0,
+            inputs: { x: 0, y: 0 }, // Joystick
             flaps: false,
-            pitchInput: 0,
-            rollInput: 0,
-            isFlying: false,
-            health: 100,
-            targetLock: null,
-            missiles: [],
-            bullets: [],
+            playerObj: null,
             enemies: [],
-            particles: []
+            bullets: [],
+            missiles: [],
+            particles: [],
+            lockedTarget: null
         };
 
-        // --- THREE.JS SETUP ---
+        // --- THREE JS SETUP ---
         const container = document.getElementById('game-container');
         const scene = new THREE.Scene();
+        
+        // Fog for horizon blending
+        scene.fog = new THREE.Fog(0xdcb286, 500, 2500); 
         scene.background = new THREE.Color(0x87CEEB);
-        scene.fog = new THREE.Fog(0x87CEEB, 100, 900);
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 5000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
-        container.insertBefore(renderer.domElement, document.getElementById('hud'));
+        container.insertBefore(renderer.domElement, document.getElementById('hud-layer'));
 
         // Lights
-        const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
-        scene.add(ambientLight);
-        const sunLight = new THREE.DirectionalLight(0xffffff, 1);
-        sunLight.position.set(100, 200, 50);
-        sunLight.castShadow = true;
-        scene.add(sunLight);
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0xdcb286, 0.8);
+        scene.add(hemiLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(100, 500, 200);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        dirLight.shadow.camera.near = 10;
+        dirLight.shadow.camera.far = 1000;
+        scene.add(dirLight);
 
-        // --- ASSETS GENERATION ---
+        // --- WORLD GENERATION ---
+
+        // 1. Terrain
+        const groundGeo = new THREE.PlaneGeometry(CONFIG.mapScale, CONFIG.mapScale, 64, 64);
         
-        // 1. Terrain (Desert)
-        const groundGeo = new THREE.PlaneGeometry(CONFIG.mapSize, CONFIG.mapSize, 32, 32);
-        // Simple noise for dunes
-        const posAttribute = groundGeo.attributes.position;
-        for ( let i = 0; i < posAttribute.count; i ++ ) {
-            const z = posAttribute.getZ( i );
-            posAttribute.setZ( i, z + Math.random() * 5 );
+        // Create dunes/hills
+        const pos = groundGeo.attributes.position;
+        for(let i=0; i<pos.count; i++){
+            const x = pos.getX(i);
+            const y = pos.getY(i);
+            // Simple noise
+            const z = (Math.sin(x/200) * Math.cos(y/200) * 20) + (Math.random()*2);
+            pos.setZ(i, z);
         }
         groundGeo.computeVertexNormals();
-        const groundMat = new THREE.MeshLambertMaterial({ color: 0xD2B48C });
+
+        // Custom Grid Texture for Speed Reference
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#dcb286'; // Sand
+        ctx.fillRect(0,0,512,512);
+        ctx.strokeStyle = '#cda175'; // Darker sand
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0,0,512,512);
+        // Draw grid
+        ctx.beginPath();
+        for(let i=0; i<=512; i+=64) {
+            ctx.moveTo(i,0); ctx.lineTo(i,512);
+            ctx.moveTo(0,i); ctx.lineTo(512,i);
+        }
+        ctx.stroke();
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(40, 40);
+
+        const groundMat = new THREE.MeshLambertMaterial({ map: tex });
         const ground = new THREE.Mesh(groundGeo, groundMat);
-        ground.rotation.x = -Math.PI / 2;
+        ground.rotation.x = -Math.PI/2;
         ground.receiveShadow = true;
         scene.add(ground);
 
-        // Runway
-        const runwayGeo = new THREE.PlaneGeometry(100, 800);
-        const runwayMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
-        const runway = new THREE.Mesh(runwayGeo, runwayMat);
-        runway.rotation.x = -Math.PI / 2;
-        runway.position.y = 0.1;
-        runway.position.z = 200;
+        // 2. Runway
+        const runway = new THREE.Mesh(
+            new THREE.PlaneGeometry(80, 1000),
+            new THREE.MeshLambertMaterial({ color: 0x333333 })
+        );
+        runway.rotation.x = -Math.PI/2;
+        runway.position.set(0, 0.5, 0);
+        runway.receiveShadow = true;
         scene.add(runway);
 
-        // 2. Player Aircraft (F-18 Style Low Poly)
-        function createJet() {
+        // --- PLAYER AIRCRAFT ---
+        function createF18() {
             const group = new THREE.Group();
-            
-            const fuselageGeo = new THREE.ConeGeometry(0.8, 6, 8);
-            fuselageGeo.rotateX(Math.PI / 2);
-            const fuselage = new THREE.Mesh(fuselageGeo, new THREE.MeshPhongMaterial({ color: 0x555555 }));
-            group.add(fuselage);
 
-            const wingsGeo = new THREE.BoxGeometry(6, 0.1, 2);
-            const wings = new THREE.Mesh(wingsGeo, new THREE.MeshPhongMaterial({ color: 0x444444 }));
-            wings.position.set(0, 0, 0.5);
+            // Materials
+            const grey = new THREE.MeshPhongMaterial({color: 0x777777, shininess: 50});
+            const dark = new THREE.MeshPhongMaterial({color: 0x333333});
+            const glass = new THREE.MeshPhongMaterial({color: 0x00aaff, shininess: 100, opacity: 0.6, transparent: true});
+
+            // Fuselage
+            const body = new THREE.Mesh(new THREE.ConeGeometry(1.2, 10, 8), grey);
+            body.rotation.x = Math.PI/2;
+            group.add(body);
+
+            // Cockpit
+            const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.7, 3, 8), glass);
+            canopy.rotation.x = Math.PI/2;
+            canopy.position.set(0, 1, -1);
+            group.add(canopy);
+
+            // Wings
+            const wings = new THREE.Mesh(new THREE.BoxGeometry(10, 0.2, 4), grey);
+            wings.position.set(0, 0, 1);
             group.add(wings);
 
-            const tailGeo = new THREE.BoxGeometry(2.5, 0.1, 1.5);
-            const tail = new THREE.Mesh(tailGeo, new THREE.MeshPhongMaterial({ color: 0x444444 }));
-            tail.position.set(0, 0, 2.5);
-            group.add(tail);
+            // Vertical Stabilizers
+            const tailL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.5, 2), grey);
+            tailL.position.set(1.5, 1, 3.5);
+            tailL.rotation.z = Math.PI/8;
+            group.add(tailL);
+            const tailR = tailL.clone();
+            tailR.position.set(-1.5, 1, 3.5);
+            tailR.rotation.z = -Math.PI/8;
+            group.add(tailR);
 
-            const vTailGeo = new THREE.BoxGeometry(0.1, 1.5, 1);
-            const vTail1 = new THREE.Mesh(vTailGeo, new THREE.MeshPhongMaterial({ color: 0x444444 }));
-            vTail1.position.set(0.5, 0.5, 2.5);
-            vTail1.rotation.z = Math.PI / 6;
-            const vTail2 = vTail1.clone();
-            vTail2.position.set(-0.5, 0.5, 2.5);
-            vTail2.rotation.z = -Math.PI / 6;
-            group.add(vTail1);
-            group.add(vTail2);
-
-            const cockpitGeo = new THREE.ConeGeometry(0.4, 1.5, 8);
-            cockpitGeo.rotateX(Math.PI/2);
-            const cockpit = new THREE.Mesh(cockpitGeo, new THREE.MeshPhongMaterial({color: 0x111111}));
-            cockpit.position.set(0, 0.5, -0.5);
-            group.add(cockpit);
+            // Exhausts (for particles)
+            const exL = new THREE.Object3D(); exL.position.set(0.8, 0, 5); group.add(exL);
+            const exR = new THREE.Object3D(); exR.position.set(-0.8, 0, 5); group.add(exR);
 
             group.castShadow = true;
+            group.userData = { exhausts: [exL, exR] };
             return group;
         }
 
-        const player = createJet();
-        player.position.set(0, 1.5, 500); // On runway
-        scene.add(player);
+        state.playerObj = createF18();
+        state.playerObj.position.set(0, 2, 400); // Start on runway
+        scene.add(state.playerObj);
 
-        // Camera rig
-        const cameraRig = new THREE.Object3D();
-        scene.add(cameraRig);
+        // Dummy object for camera target smoothing
+        const camTarget = new THREE.Object3D();
+        scene.add(camTarget);
 
-        // 3. Target Tower
-        const towerGroup = new THREE.Group();
-        const baseGeo = new THREE.BoxGeometry(10, 40, 10);
-        const base = new THREE.Mesh(baseGeo, new THREE.MeshPhongMaterial({color: 0x666666}));
-        base.position.y = 20;
-        const dishGeo = new THREE.CylinderGeometry(0.1, 8, 4, 16);
-        const dish = new THREE.Mesh(dishGeo, new THREE.MeshPhongMaterial({color: 0x990000}));
-        dish.position.y = 42;
-        dish.rotation.x = Math.PI / 4;
-        towerGroup.add(base);
-        towerGroup.add(dish);
-        towerGroup.position.set(0, 0, -800);
-        towerGroup.userData = { type: 'tower', hp: 200 };
-        scene.add(towerGroup);
-
-        // 4. Enemy Bogies
-        function spawnEnemy(x, z) {
-            const enemy = createJet();
-            enemy.children.forEach(c => c.material.color.setHex(0xaa3333)); // Red
-            enemy.position.set(x, 100 + Math.random()*50, z);
-            enemy.userData = { type: 'enemy', hp: 30, speed: 0.8 };
-            scene.add(enemy);
-            state.enemies.push(enemy);
-        }
-        spawnEnemy(-300, -300);
-        spawnEnemy(300, -500);
-
-        // --- INPUT HANDLING ---
-        
-        // Joystick Logic
-        const joystickZone = document.getElementById('joystick-zone');
-        const joystickKnob = document.getElementById('joystick-knob');
-        let joyStartX, joyStartY;
-        let joyActive = false;
-
-        joystickZone.addEventListener('touchstart', (e) => {
-            joyActive = true;
-            const touch = e.touches[0];
-            const rect = joystickZone.getBoundingClientRect();
-            joyStartX = rect.left + rect.width / 2;
-            joyStartY = rect.top + rect.height / 2;
-            updateJoystick(touch.clientX, touch.clientY);
-        });
-
-        joystickZone.addEventListener('touchmove', (e) => {
-            if(!joyActive) return;
-            e.preventDefault();
-            updateJoystick(e.touches[0].clientX, e.touches[0].clientY);
-        });
-
-        const endJoystick = () => {
-            joyActive = false;
-            joystickKnob.style.transform = `translate(-50%, -50%)`;
-            state.rollInput = 0;
-            state.pitchInput = 0;
-        };
-        joystickZone.addEventListener('touchend', endJoystick);
-        joystickZone.addEventListener('touchcancel', endJoystick);
-
-        function updateJoystick(x, y) {
-            const maxDist = 50;
-            let dx = x - joyStartX;
-            let dy = y - joyStartY;
-            const dist = Math.sqrt(dx*dx + dy*dy);
+        // --- ENEMIES & OBJECTIVES ---
+        function createTarget(type, x, z) {
+            const obj = new THREE.Group();
             
-            if (dist > maxDist) {
-                dx = (dx / dist) * maxDist;
-                dy = (dy / dist) * maxDist;
+            if (type === 'tower') {
+                const base = new THREE.Mesh(new THREE.BoxGeometry(15, 60, 15), new THREE.MeshPhongMaterial({color: 0x555555}));
+                base.position.y = 30;
+                const dish = new THREE.Mesh(new THREE.CylinderGeometry(1, 8, 5, 8), new THREE.MeshPhongMaterial({color: 0xaa0000}));
+                dish.rotation.x = Math.PI/2;
+                dish.position.y = 60;
+                obj.add(base, dish);
+                obj.userData = { hp: 500, type: 'tower', name: 'COMMS TOWER' };
+            } else if (type === 'bogie') {
+                const jet = createF18();
+                jet.children.forEach(c => { if(c.material) c.material = new THREE.MeshPhongMaterial({color: 0x882222}); });
+                obj.add(jet);
+                obj.userData = { hp: 50, type: 'bogie', speed: 1.5, name: 'BOGIE' };
+                obj.position.y = 200;
             }
 
-            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-            
-            // Map to inputs (-1 to 1)
-            state.rollInput = -dx / maxDist; // Left/Right
-            state.pitchInput = -dy / maxDist; // Up/Down (inverted Y usually)
+            obj.position.x = x;
+            obj.position.z = z;
+            scene.add(obj);
+            state.enemies.push(obj);
         }
 
-        // Throttle Logic
-        const throttleContainer = document.getElementById('throttle-container');
-        throttleContainer.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const rect = throttleContainer.getBoundingClientRect();
-            let y = e.touches[0].clientY - rect.top;
-            y = Math.max(0, Math.min(y, rect.height));
-            const percent = 1 - (y / rect.height);
-            setThrottle(percent);
-        });
+        // Spawn stuff
+        createTarget('tower', 0, -1500);
+        createTarget('bogie', -500, -800);
+        createTarget('bogie', 500, -1200);
+        createTarget('bogie', -800, -2000);
+
+        // --- PARTICLES ---
+        function createParticle(pos, type) {
+            const geo = new THREE.PlaneGeometry(type==='fire'?4:1, type==='fire'?4:1);
+            const mat = new THREE.MeshBasicMaterial({ 
+                color: type==='fire'?0xffaa00:0xaaaaaa, 
+                transparent: true, opacity: 0.8, side: THREE.DoubleSide 
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pos);
+            mesh.lookAt(camera.position); // Billboarding
+            
+            scene.add(mesh);
+            state.particles.push({ 
+                mesh: mesh, 
+                life: type==='fire'?20:40, 
+                maxLife: type==='fire'?20:40,
+                scaleDelta: type==='fire'?0.5:0.1
+            });
+        }
+
+        // --- INPUT HANDLING ---
+        const stick = document.getElementById('stick');
+        const stickArea = document.getElementById('joystick-area');
         
-        function setThrottle(val) {
+        let joyTouchId = null;
+        let throttleTouchId = null;
+
+        // Joystick
+        stickArea.addEventListener('touchstart', e => {
+            e.preventDefault();
+            const t = e.changedTouches[0];
+            joyTouchId = t.identifier;
+            handleJoy(t.clientX, t.clientY);
+        }, {passive: false});
+
+        stickArea.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for(let i=0; i<e.changedTouches.length; i++) {
+                if(e.changedTouches[i].identifier === joyTouchId) {
+                    handleJoy(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+                }
+            }
+        }, {passive: false});
+
+        const resetJoy = (e) => {
+            for(let i=0; i<e.changedTouches.length; i++) {
+                if(e.changedTouches[i].identifier === joyTouchId) {
+                    joyTouchId = null;
+                    state.inputs.x = 0; state.inputs.y = 0;
+                    stick.style.transform = `translate(-50%, -50%)`;
+                }
+            }
+        };
+        stickArea.addEventListener('touchend', resetJoy);
+
+        function handleJoy(cx, cy) {
+            const rect = stickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width/2;
+            const centerY = rect.top + rect.height/2;
+            
+            let dx = cx - centerX;
+            let dy = cy - centerY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const maxR = 40;
+
+            if (dist > maxR) {
+                dx = (dx/dist) * maxR;
+                dy = (dy/dist) * maxR;
+            }
+
+            stick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            
+            state.inputs.x = dx / maxR; // Roll
+            state.inputs.y = dy / maxR; // Pitch
+        }
+
+        // Throttle
+        const throttleEl = document.getElementById('throttle-slider');
+        throttleEl.addEventListener('touchstart', handleThrottle, {passive: false});
+        throttleEl.addEventListener('touchmove', handleThrottle, {passive: false});
+
+        function handleThrottle(e) {
+            e.preventDefault();
+            const rect = throttleEl.getBoundingClientRect();
+            const t = e.touches[0];
+            let val = 1.0 - ((t.clientY - rect.top) / rect.height);
+            val = Math.max(0, Math.min(1, val));
             state.throttle = val;
-            document.getElementById('throttle-fill').style.height = (val * 100) + "%";
+            document.getElementById('throttle-bar').style.height = (val*100)+'%';
+            document.getElementById('throttle-knob').style.bottom = (val*100)+'%';
+            document.getElementById('hud-thr').innerText = Math.floor(val*100);
         }
 
         // Buttons
         document.getElementById('btn-flaps').addEventListener('click', () => {
             state.flaps = !state.flaps;
-            document.getElementById('hud-flaps').innerText = state.flaps ? "ON" : "OFF";
-            document.getElementById('btn-flaps').style.background = state.flaps ? "green" : "";
+            const btn = document.getElementById('btn-flaps');
+            btn.style.background = state.flaps ? '#00aa00' : '';
+        });
+        document.getElementById('btn-fire').addEventListener('touchstart', (e)=>{ e.preventDefault(); fireGun(); });
+        document.getElementById('btn-missile').addEventListener('click', fireMissile);
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('overlay').style.display = 'none';
+            state.flying = true;
         });
 
-        document.getElementById('btn-fire').addEventListener('touchstart', (e) => { e.preventDefault(); fireGun(); });
-        document.getElementById('btn-missile').addEventListener('click', fireMissile);
-
-        // --- GAMEPLAY LOGIC ---
+        // --- GAME LOGIC ---
 
         function fireGun() {
-            const bullet = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 2), new THREE.MeshBasicMaterial({color: 0xffff00}));
-            bullet.position.copy(player.position);
-            bullet.quaternion.copy(player.quaternion);
-            bullet.translateZ(-2); // Start slightly in front
+            if(!state.flying) return;
+            // Spawn bullet
+            const bGeo = new THREE.BoxGeometry(0.5, 0.5, 5);
+            const bMat = new THREE.MeshBasicMaterial({color: 0xffff00});
+            const bullet = new THREE.Mesh(bGeo, bMat);
+            
+            // Offset slightly
+            const offset = new THREE.Vector3(0, 0, -2).applyMatrix4(state.playerObj.matrixWorld);
+            bullet.position.copy(offset);
+            bullet.quaternion.copy(state.playerObj.quaternion);
+            
             scene.add(bullet);
-            state.bullets.push({ mesh: bullet, life: 60 });
+            state.bullets.push({mesh: bullet, life: 60});
         }
 
         function fireMissile() {
-            if (!state.targetLock) return;
-            const msl = new THREE.Mesh(new THREE.ConeGeometry(0.2, 1, 8), new THREE.MeshBasicMaterial({color: 0xffffff}));
-            msl.rotateX(Math.PI/2);
-            const wrapper = new THREE.Group(); // Wrapper for rotation
-            wrapper.add(msl);
-            wrapper.position.copy(player.position);
-            wrapper.quaternion.copy(player.quaternion);
-            scene.add(wrapper);
-            state.missiles.push({ mesh: wrapper, target: state.targetLock, speed: 0.5, life: 300 });
+            if(!state.flying || !state.lockedTarget) return;
+            
+            const mGeo = new THREE.ConeGeometry(0.3, 2, 8);
+            mGeo.rotateX(-Math.PI/2); // Fix geometry orientation
+            const mMat = new THREE.MeshBasicMaterial({color: 0xffffff});
+            const missile = new THREE.Mesh(mGeo, mMat);
+            
+            missile.position.copy(state.playerObj.position);
+            missile.quaternion.copy(state.playerObj.quaternion);
+            missile.translateY(-1); // Drop from wing
+            
+            scene.add(missile);
+            state.missiles.push({
+                mesh: missile, 
+                target: state.lockedTarget,
+                speed: state.speed + 0.5, // Start faster than plane
+                turnRate: 0.1,
+                life: 300 
+            });
         }
 
         function updatePhysics() {
-            // Acceleration
-            const targetSpeed = state.throttle * CONFIG.maxSpeed;
-            // Drag if flaps on
-            const drag = state.flaps ? 0.98 : 0.995;
-            
-            if (state.speed < targetSpeed) state.speed += 0.01;
+            const jet = state.playerObj;
+
+            // 1. Speed Dynamics
+            const targetSpd = state.throttle * CONFIG.maxSpeed;
+            if (state.speed < targetSpd) state.speed += 0.02;
             else state.speed -= 0.01;
             
-            state.speed *= drag;
+            // Flaps drag
+            if(state.flaps) state.speed *= 0.99;
 
-            // Movement
-            player.translateZ(-state.speed);
+            // 2. Rotation (Roll/Pitch)
+            // Roll
+            jet.rotateZ(-state.inputs.x * 0.04);
+            // Pitch
+            jet.rotateX(-state.inputs.y * 0.03);
 
-            // Rotation
-            if (state.speed > 0.1) {
-                player.rotateX(state.pitchInput * CONFIG.rotationSpeed);
-                player.rotateZ(state.rollInput * CONFIG.rotationSpeed);
-            }
+            // 3. Movement
+            jet.translateZ(-state.speed);
 
-            // Gravity / Lift
-            // Lift is proportional to speed squared
-            const lift = Math.pow(state.speed, 2) * CONFIG.liftCoefficient * (state.flaps ? 2.5 : 1);
-            let gravityEffect = CONFIG.gravity;
-
-            // Apply altitude change
-            player.position.y += (lift - gravityEffect) * 10;
-
-            // Ground Collision
-            if (player.position.y < 1.5) {
-                player.position.y = 1.5;
-                // If hitting ground hard, crash (simplified here: just level out)
-                const rot = new THREE.Euler().setFromQuaternion(player.quaternion);
-                rot.x = 0; 
-                rot.z = 0;
-                player.quaternion.setFromEuler(rot);
-            }
-
-            // Camera Follow
-            const relativeOffset = new THREE.Vector3(0, 5, 15);
-            const cameraOffset = relativeOffset.applyMatrix4(player.matrixWorld);
-            camera.position.lerp(cameraOffset, 0.1);
-            camera.lookAt(player.position);
-        }
-
-        function updateCombat() {
-            // Find Target Lock
-            let closest = null;
-            let maxDist = 1000;
-            const targets = [...state.enemies, towerGroup];
+            // 4. Gravity / Lift
+            // Lift formula approximation
+            const lift = (state.speed * state.speed) * (state.flaps ? 0.3 : 0.15);
+            const gravity = 0.4;
             
-            const playerDir = new THREE.Vector3();
-            player.getWorldDirection(playerDir);
-            playerDir.negate(); // Threejs forward is negative Z
+            // Apply vertical movement based on lift vs gravity
+            // We do this by moving world Y. 
+            // Note: translateZ moves based on local rotation, so if we pitch up, Z moves us up.
+            // But gravity is always global Y down.
+            jet.position.y -= (gravity - lift);
 
-            targets.forEach(tgt => {
-                if(!tgt.parent && tgt !== scene) return; // Removed
-                const dist = player.position.distanceTo(tgt.position);
-                const dirToTgt = new THREE.Vector3().subVectors(tgt.position, player.position).normalize();
-                const angle = playerDir.angleTo(dirToTgt);
-
-                // Lock if within 20 degrees cone
-                if (dist < maxDist && angle < 0.35) {
-                    closest = tgt;
-                    maxDist = dist;
-                }
-            });
-
-            state.targetLock = closest;
-            const lockInd = document.getElementById('lock-indicator');
-            if (closest) {
-                lockInd.style.display = 'block';
-                // Project 3D position to 2D screen
-                const vec = closest.position.clone();
-                vec.project(camera);
-                const x = (vec.x * .5 + .5) * window.innerWidth;
-                const y = (-(vec.y * .5) + .5) * window.innerHeight;
-                
-                // Keep inside screen
-                if (vec.z < 1) {
-                    lockInd.style.left = x + 'px';
-                    lockInd.style.top = y + 'px';
-                } else {
-                    lockInd.style.display = 'none';
-                }
-            } else {
-                lockInd.style.display = 'none';
-            }
-
-            // Update Bullets
-            for (let i = state.bullets.length - 1; i >= 0; i--) {
-                const b = state.bullets[i];
-                b.mesh.translateZ(-4); // Bullet speed
-                b.life--;
-                
-                // Collision
-                targets.forEach(tgt => {
-                    if (b.mesh.position.distanceTo(tgt.position) < 10) {
-                        createExplosion(tgt.position, 0xffff00);
-                        tgt.userData.hp -= 10;
-                        checkKill(tgt);
-                        scene.remove(b.mesh);
-                        b.life = 0;
-                    }
-                });
-
-                if (b.life <= 0) {
-                    scene.remove(b.mesh);
-                    state.bullets.splice(i, 1);
-                }
-            }
-
-            // Update Missiles
-            for (let i = state.missiles.length - 1; i >= 0; i--) {
-                const m = state.missiles[i];
-                m.mesh.translateZ(-m.speed);
-                m.speed += 0.05; // Accelerate
-                
-                // Homing logic
-                if (m.target && m.target.parent !== null) {
-                    const targetPos = m.target.position.clone();
-                    m.mesh.lookAt(targetPos);
-                    // Invert lookAt because model faces +Z but moves -Z (or fix geometry)
-                    // Quick fix: rotate mesh 180 Y
-                     m.mesh.rotateY(Math.PI); 
-                }
-
-                m.life--;
-                
-                // Collision
-                if (m.target && m.mesh.position.distanceTo(m.target.position) < 15) {
-                    createExplosion(m.target.position, 0xff5500);
-                    m.target.userData.hp -= 50;
-                    checkKill(m.target);
-                    scene.remove(m.mesh);
-                    m.life = 0;
-                }
-
-                if (m.life <= 0) {
-                    scene.remove(m.mesh);
-                    state.missiles.splice(i, 1);
+            // Floor collision
+            if (jet.position.y < 2) {
+                jet.position.y = 2;
+                // Auto level if on ground
+                jet.rotation.x *= 0.9;
+                jet.rotation.z *= 0.9;
+                if(state.speed > 1) {
+                    createParticle(jet.position, 'dust');
                 }
             }
         }
 
-        function createExplosion(pos, color) {
-            // Simple particle burst
-            const pCount = 5;
-            for(let i=0; i<pCount; i++) {
-                const geo = new THREE.BoxGeometry(1,1,1);
-                const mat = new THREE.MeshBasicMaterial({color: color});
-                const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.copy(pos);
-                mesh.userData = { 
-                    vel: new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).multiplyScalar(2)
-                };
-                scene.add(mesh);
-                state.particles.push({mesh: mesh, life: 20});
-            }
-        }
-
-        function checkKill(tgt) {
-            if (tgt.userData.hp <= 0) {
-                createExplosion(tgt.position, 0xff0000);
-                createExplosion(tgt.position, 0x000000);
-                
-                if (tgt.userData.type === 'tower') {
-                    document.getElementById('status-text').innerText = "MISSION ACCOMPLISHED";
-                    document.getElementById('game-over').style.display = 'flex';
-                    document.getElementById('start-btn').innerText = "Replay";
-                    state.isFlying = false;
-                }
-                
-                scene.remove(tgt);
-                // Remove from enemy list
-                state.enemies = state.enemies.filter(e => e !== tgt);
-            }
-        }
-
-        function updateAI() {
-            state.enemies.forEach(enemy => {
-                enemy.translateZ(-enemy.userData.speed);
-                // Simple circle logic
-                enemy.rotateY(0.01);
-                
-                // Keep them up
-                if (enemy.position.y < 50) enemy.position.y = 50;
-            });
+        function updateCamera() {
+            // Chase camera logic
+            const jet = state.playerObj;
             
-            // Particles
-            for(let i=state.particles.length-1; i>=0; i--) {
-                const p = state.particles[i];
-                p.mesh.position.add(p.mesh.userData.vel);
-                p.life--;
-                if(p.life <=0) {
-                    scene.remove(p.mesh);
-                    state.particles.splice(i, 1);
-                }
-            }
+            // Calculate ideal camera position (behind and slightly up)
+            const relativeOffset = new THREE.Vector3(0, 8, 25);
+            
+            // Camera Target (Where camera looks)
+            const lookOffset = new THREE.Vector3(0, 0, -50);
+            
+            // Transform to world space
+            const idealPos = relativeOffset.clone().applyMatrix4(jet.matrixWorld);
+            const idealLook = lookOffset.clone().applyMatrix4(jet.matrixWorld);
+
+            // Smoothly interpolate current camera position to ideal position
+            camera.position.lerp(idealPos, CONFIG.camLag);
+            
+            // Smooth lookAt using a dummy object
+            camTarget.position.lerp(idealLook, CONFIG.camLag);
+            camera.lookAt(camTarget.position);
         }
 
         function updateHUD() {
-            // Convert speed to approximate Knots (arbitrary multiplier)
-            document.getElementById('hud-speed').innerText = Math.floor(state.speed * 400);
-            document.getElementById('hud-alt').innerText = Math.floor(player.position.y * 10);
-            const dist = player.position.distanceTo(towerGroup.position);
-            document.getElementById('hud-dist').innerText = Math.floor(dist);
+            // HUD Text
+            document.getElementById('hud-spd').innerText = Math.floor(state.speed * 200);
+            document.getElementById('hud-alt').innerText = Math.floor(state.playerObj.position.y * 10);
+            
+            // Artificial Horizon (Pitch Ladder) Logic
+            const jet = state.playerObj;
+            
+            // Get Euler rotations
+            const euler = new THREE.Euler().setFromQuaternion(jet.quaternion);
+            // Note: Three.js Euler order is usually XYZ.
+            // Roll is Z (in radians), Pitch is X.
+            
+            // 1. Roll the whole ladder container opposite to plane roll
+            const rollDeg = euler.z * (180/Math.PI);
+            const pitchDeg = euler.x * (180/Math.PI);
+            
+            const ladder = document.getElementById('pitch-ladder');
+            const horizon = document.getElementById('horizon-container');
+            
+            // Rotate the container opposite to the plane
+            horizon.style.transform = `translate(-50%, -50%) rotate(${rollDeg}deg)`;
+            
+            // Slide the ladder up/down based on pitch
+            // 10 degrees pitch = X pixels. Calibrate by feel. 
+            // Say 300px = 90 degrees -> ~3.3px per degree
+            const pxPerDeg = 8;
+            const yOffset = pitchDeg * pxPerDeg;
+            
+            ladder.style.transform = `translateY(${yOffset}px)`;
         }
 
-        // --- LOOP ---
-        function animate() {
-            requestAnimationFrame(animate);
+        function updateCombat() {
+            // Target Locking Logic
+            const jet = state.playerObj;
+            let bestTarget = null;
+            let minAngle = 0.4; // Radians, cone of view
+            
+            const forward = new THREE.Vector3(0,0,-1).applyQuaternion(jet.quaternion);
 
-            if (state.isFlying) {
-                updatePhysics();
-                updateCombat();
-                updateAI();
-                updateHUD();
+            state.enemies.forEach(tgt => {
+                if(tgt.userData.hp <= 0) return;
+                
+                // Vector to target
+                const toTgt = new THREE.Vector3().subVectors(tgt.position, jet.position).normalize();
+                const angle = forward.angleTo(toTgt);
+                
+                if(angle < minAngle) {
+                    minAngle = angle;
+                    bestTarget = tgt;
+                }
+            });
+
+            state.lockedTarget = bestTarget;
+            const box = document.getElementById('target-box');
+            
+            if(bestTarget) {
+                // Project 3D position to 2D screen
+                const p = bestTarget.position.clone();
+                p.project(camera);
+                
+                // Check if in front of camera (z < 1)
+                if(p.z < 1) {
+                    const x = (p.x * 0.5 + 0.5) * container.clientWidth;
+                    const y = -(p.y * 0.5 - 0.5) * container.clientHeight;
+                    
+                    box.style.display = 'block';
+                    box.style.left = x + 'px';
+                    box.style.top = y + 'px';
+                    box.style.borderColor = (minAngle < 0.1) ? 'red' : 'lime'; // Red if good lock
+                    document.getElementById('target-label').innerText = bestTarget.userData.name;
+                    document.getElementById('hud-tgt').innerText = bestTarget.userData.name;
+                    document.getElementById('hud-dist').innerText = Math.floor(jet.position.distanceTo(bestTarget.position));
+                } else {
+                    box.style.display = 'none';
+                }
+            } else {
+                box.style.display = 'none';
+                document.getElementById('hud-tgt').innerText = "NONE";
+                document.getElementById('hud-dist').innerText = "---";
+            }
+
+            // Projectiles
+            // Bullets
+            for(let i=state.bullets.length-1; i>=0; i--) {
+                const b = state.bullets[i];
+                b.mesh.translateZ(-10); // Very fast
+                b.life--;
+                
+                // Hit check
+                let hit = false;
+                state.enemies.forEach(e => {
+                    if(!hit && e.position.distanceTo(b.mesh.position) < 15) {
+                        createParticle(e.position, 'fire');
+                        e.userData.hp -= 10;
+                        checkKill(e);
+                        hit = true;
+                    }
+                });
+
+                if(b.life <= 0 || hit) {
+                    scene.remove(b.mesh);
+                    state.bullets.splice(i,1);
+                }
+            }
+
+            // Missiles
+            for(let i=state.missiles.length-1; i>=0; i--) {
+                const m = state.missiles[i];
+                m.mesh.translateZ(m.speed); // Missile moves forward locally (which is Z+) 
+                // Wait, geometry was rotated. Let's move along Z- of the object
+                m.mesh.translateY(m.speed); // Cones point up Y by default
+
+                if(m.target && m.target.parent) {
+                    // Homing
+                    const targetPos = m.target.position.clone();
+                    const mPos = m.mesh.position.clone();
+                    
+                    // Rotate towards target
+                    const mtx = new THREE.Matrix4().lookAt(mPos, targetPos, new THREE.Vector3(0,1,0));
+                    const targetQ = new THREE.Quaternion().setFromRotationMatrix(mtx);
+                    // Adjust because Cone geometry points Y+
+                    targetQ.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), Math.PI/2));
+                    
+                    m.mesh.quaternion.slerp(targetQ, m.turnRate);
+                }
+
+                m.life--;
+                // Hit check
+                let hit = false;
+                state.enemies.forEach(e => {
+                    if(!hit && e.position.distanceTo(m.mesh.position) < 20) {
+                        createParticle(e.position, 'fire');
+                        e.userData.hp -= 100; // Big damage
+                        checkKill(e);
+                        hit = true;
+                    }
+                });
+
+                if(m.life <=0 || hit) {
+                    scene.remove(m.mesh);
+                    state.missiles.splice(i,1);
+                }
             }
         }
 
-        // --- INIT ---
-        document.getElementById('start-btn').addEventListener('click', () => {
-            document.getElementById('game-over').style.display = 'none';
-            // Reset logic could go here
-            if (!state.isFlying && state.health <= 0) location.reload();
-            state.isFlying = true;
-        });
-        
-        // Handle Resize
+        function checkKill(obj) {
+            if(obj.userData.hp <= 0) {
+                // Explosion
+                for(let k=0; k<10; k++) createParticle(obj.position, 'fire');
+                
+                const msg = document.getElementById('msg-center');
+                msg.style.display = 'block';
+                msg.innerText = "DESTROYED: " + obj.userData.name;
+                setTimeout(() => msg.style.display='none', 2000);
+
+                scene.remove(obj);
+                // Remove from array
+                const idx = state.enemies.indexOf(obj);
+                if(idx > -1) state.enemies.splice(idx, 1);
+            }
+        }
+
+        function updateVisuals() {
+            // Exhaust particles
+            if(state.speed > 0.5) {
+                state.playerObj.userData.exhausts.forEach(ex => {
+                    // World position of exhaust
+                    const p = new THREE.Vector3();
+                    ex.getWorldPosition(p);
+                    // Add particle slightly randomized
+                    p.x += (Math.random()-0.5);
+                    p.y += (Math.random()-0.5);
+                    createParticle(p, 'smoke');
+                });
+            }
+
+            // Update all particles
+            for(let i=state.particles.length-1; i>=0; i--) {
+                const p = state.particles[i];
+                p.life--;
+                const s = 1 + ((p.maxLife - p.life) * p.scaleDelta);
+                p.mesh.scale.set(s,s,s);
+                p.mesh.material.opacity = p.life / p.maxLife;
+                if(p.life<=0) {
+                    scene.remove(p.mesh);
+                    state.particles.splice(i,1);
+                }
+            }
+        }
+
+        // --- PITCH LADDER GENERATION ---
+        function createPitchLadder() {
+            const container = document.getElementById('pitch-ladder');
+            // Create lines for +90 to -90 degrees
+            // Assuming 8px per degree
+            const pxPerDeg = 8;
+            
+            for(let deg = 90; deg >= -90; deg -= 10) {
+                if (deg === 0) {
+                    const line = document.createElement('div');
+                    line.className = 'pitch-line zero-line';
+                    line.style.top = (300 - (deg * pxPerDeg)) + 'px'; // Center is 300
+                    container.appendChild(line);
+                } else {
+                    const line = document.createElement('div');
+                    line.className = 'pitch-line';
+                    line.style.top = (300 - (deg * pxPerDeg)) + 'px';
+                    // Label
+                    line.innerHTML = `<span style="position:absolute; left:-25px; top:-5px; font-size:10px; color:#0f0">${deg}</span>
+                                      <span style="position:absolute; right:-25px; top:-5px; font-size:10px; color:#0f0">${deg}</span>`;
+                    container.appendChild(line);
+                }
+            }
+        }
+        createPitchLadder();
+
+
+        // --- MAIN LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if(state.flying) {
+                updatePhysics();
+                updateCamera();
+                updateCombat();
+                updateVisuals();
+                updateHUD();
+                
+                // Move Bogies
+                state.enemies.forEach(e => {
+                    if(e.userData.type === 'bogie') {
+                        e.translateZ(1.0); // Move forward
+                        // Keep within bounds roughly
+                        if(e.position.distanceTo(new THREE.Vector3(0,0,0)) > 3000) {
+                            e.lookAt(0, 200, 0);
+                        }
+                    }
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
