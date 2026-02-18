@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>F-18 Desert Storm</title>
+    <title>F-18 Desert Storm: Desktop & Mobile</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Consolas', monospace; touch-action: none; user-select: none; -webkit-user-select: none; }
         #game-container { position: relative; width: 100vw; height: 100vh; }
         
         /* --- HUD --- */
         #hud-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
-        
-        /* Text Info */
         .hud-text { color: #0f0; text-shadow: 1px 1px 0 #000; font-weight: bold; position: absolute; font-size: 14px; }
         #info-left { top: 20px; left: 20px; text-align: left; }
         #info-right { top: 20px; right: 20px; text-align: right; }
@@ -27,57 +25,51 @@
             content: ''; position: absolute; top: 50%; left: 50%; width: 2px; height: 2px; background: #0f0; transform: translate(-50%, -50%);
         }
 
-        /* Artificial Horizon (Pitch Ladder) */
-        #horizon-container {
-            position: absolute; top: 50%; left: 50%; width: 0; height: 0; overflow: visible;
-        }
+        /* Artificial Horizon */
+        #horizon-container { position: absolute; top: 50%; left: 50%; width: 0; height: 0; overflow: visible; }
         #pitch-ladder {
-            position: absolute; width: 200px; height: 600px; /* Tall to accommodate pitch movement */
-            left: -100px; top: -300px;
+            position: absolute; width: 200px; height: 600px; left: -100px; top: -300px;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
         .pitch-line {
-            width: 100%; height: 1px; background: rgba(0, 255, 0, 0.3); position: absolute;
-            display: flex; justify-content: space-between;
+            width: 100%; height: 1px; background: rgba(0, 255, 0, 0.3); position: absolute; display: flex; justify-content: space-between;
         }
-        .pitch-line::before, .pitch-line::after {
-            content: ''; width: 10px; height: 4px; border-top: 1px solid #0f0; display: block;
-        }
+        .pitch-line::before, .pitch-line::after { content: ''; width: 10px; height: 4px; border-top: 1px solid #0f0; display: block; }
         .zero-line { background: rgba(0, 255, 0, 0.6); width: 140px; left: 30px; } 
 
         /* Target Box */
         #target-box {
-            position: absolute; width: 40px; height: 40px;
-            border: 2px solid #0f0; box-sizing: border-box;
-            transform: translate(-50%, -50%); display: none;
-            transition: border-color 0.1s;
+            position: absolute; width: 40px; height: 40px; border: 2px solid #0f0; box-sizing: border-box; transform: translate(-50%, -50%); display: none; transition: border-color 0.1s;
         }
-        #target-label {
-            position: absolute; bottom: -15px; width: 100%; text-align: center; font-size: 10px; color: #0f0;
-        }
+        #target-label { position: absolute; bottom: -15px; width: 100%; text-align: center; font-size: 10px; color: #0f0; }
 
         /* --- CONTROLS --- */
+        /* Visible only on Touch devices usually, but kept here for hybrid support */
         .control-layer { position: absolute; bottom: 20px; width: 100%; height: 140px; pointer-events: auto; display: flex; justify-content: space-between; padding: 0 30px; box-sizing: border-box; }
         
         #joystick-area { width: 120px; height: 120px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; position: relative; }
         #stick { width: 50px; height: 50px; background: rgba(0, 255, 0, 0.3); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px #0f0; }
 
         #buttons-area { display: flex; gap: 15px; align-items: flex-end; }
-        
-        .btn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid #fff; color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; font-size: 12px; background: rgba(0,0,0,0.5); }
+        .btn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid #fff; color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; font-size: 12px; background: rgba(0,0,0,0.5); cursor: pointer; }
         .btn:active { background: #fff; color: #000; }
         #btn-fire { border-color: #ff4444; color: #ff4444; }
-        #btn-fire:active { background: #ff4444; color: white; }
-        
         #throttle-slider { width: 40px; height: 120px; background: rgba(0,0,0,0.5); border: 1px solid #fff; position: relative; border-radius: 4px; margin-right: 10px; }
         #throttle-bar { position: absolute; bottom: 0; left: 0; width: 100%; background: #0088ff; height: 0%; transition: height 0.1s; }
         #throttle-knob { position: absolute; bottom: 0; left: -5px; width: 50px; height: 20px; background: #fff; transform: translateY(50%); border-radius: 2px; text-align: center; color: black; font-size: 10px; line-height: 20px; pointer-events: none;}
 
+        /* Controls Hint */
+        #pc-controls-hint {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            color: rgba(255,255,255,0.5); font-size: 12px; text-align: center; width: 100%; pointer-events: none;
+        }
+
         /* --- MENUS --- */
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 100; pointer-events: auto; }
         h1 { margin: 0 0 10px 0; color: #00ccff; text-shadow: 0 0 10px #00ccff; font-style: italic; }
-        p { color: #aaa; margin-bottom: 20px; text-align: center; max-width: 300px; font-size: 14px; }
+        p { color: #aaa; margin-bottom: 20px; text-align: center; max-width: 400px; font-size: 14px; line-height: 1.5; }
         button.start { background: #00ccff; border: none; padding: 10px 40px; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 5px; color: #000; }
+        .key { border: 1px solid #aaa; padding: 2px 5px; border-radius: 3px; font-size: 12px; color: #fff; display: inline-block; margin: 0 2px;}
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -85,39 +77,27 @@
 
     <div id="game-container">
         <div id="hud-layer">
-            <div id="horizon-container">
-                <div id="pitch-ladder">
-                    </div>
-            </div>
-            
-            <div id="target-box">
-                <div id="target-label">LOCK</div>
-            </div>
-
+            <div id="horizon-container"><div id="pitch-ladder"></div></div>
+            <div id="target-box"><div id="target-label">LOCK</div></div>
             <div id="crosshair"></div>
-
             <div id="info-left">
                 SPD: <span id="hud-spd">0</span><br>
                 ALT: <span id="hud-alt">0</span><br>
-                THR: <span id="hud-thr">0</span>%
+                THR: <span id="hud-thr">0</span>%<br>
+                FLP: <span id="hud-flaps">OFF</span>
             </div>
             <div id="info-right">
                 TGT: <span id="hud-tgt">NONE</span><br>
                 DIST: <span id="hud-dist">---</span>
             </div>
             <div id="msg-center"></div>
+            <div id="pc-controls-hint">Desktop: Arrow Keys, Space (Thrust), Ctrl (Slow), Shift (Flaps), N (Gun), M (Missile)</div>
         </div>
 
         <div class="control-layer">
-            <div id="joystick-area">
-                <div id="stick"></div>
-            </div>
-            
+            <div id="joystick-area"><div id="stick"></div></div>
             <div id="buttons-area">
-                <div id="throttle-slider">
-                    <div id="throttle-bar"></div>
-                    <div id="throttle-knob">THR</div>
-                </div>
+                <div id="throttle-slider"><div id="throttle-bar"></div><div id="throttle-knob">THR</div></div>
                 <div style="display:flex; flex-direction: column; gap:10px;">
                      <div class="btn" id="btn-flaps" style="border-color: yellow; color: yellow;">FLAPS</div>
                      <div class="btn" id="btn-missile">MSL</div>
@@ -127,15 +107,16 @@
         </div>
 
         <div id="overlay">
-            <h1>SKY STRIKER</h1>
-            <p>Mission: Destroy the Comms Tower and Enemy Drones.</p>
-            <p>Left Stick: Pitch/Roll<br>Slider: Thrust (Keep it high!)<br>Double tap Flaps to land.</p>
+            <h1>SKY STRIKER V3</h1>
+            <p>
+                <b>MOBILE:</b> Left Stick to fly, Slider for speed.<br>
+                <b>DESKTOP:</b> <span class="key">Arrows</span> Pitch/Roll | <span class="key">Space</span> Thrust | <span class="key">L-Ctrl</span> Brake | <span class="key">Shift</span> Flaps | <span class="key">N</span> Gun | <span class="key">M</span> Missile
+            </p>
             <button class="start" id="start-btn">TAKEOFF</button>
         </div>
     </div>
 
     <script>
-        // --- CONFIG & STATE ---
         const CONFIG = {
             turnSpeed: 1.2,
             maxSpeed: 3.5,
@@ -148,7 +129,8 @@
             flying: false,
             speed: 0,
             throttle: 0,
-            inputs: { x: 0, y: 0 }, // Joystick
+            inputs: { x: 0, y: 0 },
+            keys: { up: false, down: false, left: false, right: false, space: false, ctrl: false, n: false },
             flaps: false,
             playerObj: null,
             enemies: [],
@@ -161,8 +143,6 @@
         // --- THREE JS SETUP ---
         const container = document.getElementById('game-container');
         const scene = new THREE.Scene();
-        
-        // Fog for horizon blending
         scene.fog = new THREE.Fog(0xdcb286, 500, 2500); 
         scene.background = new THREE.Color(0x87CEEB);
 
@@ -172,243 +152,132 @@
         renderer.shadowMap.enabled = true;
         container.insertBefore(renderer.domElement, document.getElementById('hud-layer'));
 
-        // Lights
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0xdcb286, 0.8);
         scene.add(hemiLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 1);
         dirLight.position.set(100, 500, 200);
         dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 1024;
-        dirLight.shadow.mapSize.height = 1024;
-        dirLight.shadow.camera.near = 10;
-        dirLight.shadow.camera.far = 1000;
         scene.add(dirLight);
 
-        // --- WORLD GENERATION ---
-
-        // 1. Terrain
+        // --- ASSETS ---
+        // Terrain
         const groundGeo = new THREE.PlaneGeometry(CONFIG.mapScale, CONFIG.mapScale, 64, 64);
-        
-        // Create dunes/hills
         const pos = groundGeo.attributes.position;
         for(let i=0; i<pos.count; i++){
-            const x = pos.getX(i);
-            const y = pos.getY(i);
-            // Simple noise
+            const x = pos.getX(i); const y = pos.getY(i);
             const z = (Math.sin(x/200) * Math.cos(y/200) * 20) + (Math.random()*2);
             pos.setZ(i, z);
         }
         groundGeo.computeVertexNormals();
-
-        // Custom Grid Texture for Speed Reference
-        const canvas = document.createElement('canvas');
-        canvas.width = 512; canvas.height = 512;
+        
+        const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#dcb286'; // Sand
-        ctx.fillRect(0,0,512,512);
-        ctx.strokeStyle = '#cda175'; // Darker sand
-        ctx.lineWidth = 2;
-        ctx.strokeRect(0,0,512,512);
-        // Draw grid
+        ctx.fillStyle = '#dcb286'; ctx.fillRect(0,0,512,512);
+        ctx.strokeStyle = '#cda175'; ctx.lineWidth = 2; ctx.strokeRect(0,0,512,512);
         ctx.beginPath();
-        for(let i=0; i<=512; i+=64) {
-            ctx.moveTo(i,0); ctx.lineTo(i,512);
-            ctx.moveTo(0,i); ctx.lineTo(512,i);
-        }
+        for(let i=0; i<=512; i+=64) { ctx.moveTo(i,0); ctx.lineTo(i,512); ctx.moveTo(0,i); ctx.lineTo(512,i); }
         ctx.stroke();
-
         const tex = new THREE.CanvasTexture(canvas);
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.wrapT = THREE.RepeatWrapping;
-        tex.repeat.set(40, 40);
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(40, 40);
+        
+        const ground = new THREE.Mesh(groundGeo, new THREE.MeshLambertMaterial({ map: tex }));
+        ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
 
-        const groundMat = new THREE.MeshLambertMaterial({ map: tex });
-        const ground = new THREE.Mesh(groundGeo, groundMat);
-        ground.rotation.x = -Math.PI/2;
-        ground.receiveShadow = true;
-        scene.add(ground);
+        const runway = new THREE.Mesh(new THREE.PlaneGeometry(80, 1000), new THREE.MeshLambertMaterial({ color: 0x333333 }));
+        runway.rotation.x = -Math.PI/2; runway.position.set(0, 0.5, 0); runway.receiveShadow = true; scene.add(runway);
 
-        // 2. Runway
-        const runway = new THREE.Mesh(
-            new THREE.PlaneGeometry(80, 1000),
-            new THREE.MeshLambertMaterial({ color: 0x333333 })
-        );
-        runway.rotation.x = -Math.PI/2;
-        runway.position.set(0, 0.5, 0);
-        runway.receiveShadow = true;
-        scene.add(runway);
-
-        // --- PLAYER AIRCRAFT ---
+        // Player
         function createF18() {
             const group = new THREE.Group();
-
-            // Materials
             const grey = new THREE.MeshPhongMaterial({color: 0x777777, shininess: 50});
-            const dark = new THREE.MeshPhongMaterial({color: 0x333333});
             const glass = new THREE.MeshPhongMaterial({color: 0x00aaff, shininess: 100, opacity: 0.6, transparent: true});
-
-            // Fuselage
-            const body = new THREE.Mesh(new THREE.ConeGeometry(1.2, 10, 8), grey);
-            body.rotation.x = Math.PI/2;
-            group.add(body);
-
-            // Cockpit
-            const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.7, 3, 8), glass);
-            canopy.rotation.x = Math.PI/2;
-            canopy.position.set(0, 1, -1);
-            group.add(canopy);
-
-            // Wings
-            const wings = new THREE.Mesh(new THREE.BoxGeometry(10, 0.2, 4), grey);
-            wings.position.set(0, 0, 1);
-            group.add(wings);
-
-            // Vertical Stabilizers
-            const tailL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.5, 2), grey);
-            tailL.position.set(1.5, 1, 3.5);
-            tailL.rotation.z = Math.PI/8;
-            group.add(tailL);
-            const tailR = tailL.clone();
-            tailR.position.set(-1.5, 1, 3.5);
-            tailR.rotation.z = -Math.PI/8;
-            group.add(tailR);
-
-            // Exhausts (for particles)
+            const body = new THREE.Mesh(new THREE.ConeGeometry(1.2, 10, 8), grey); body.rotation.x = Math.PI/2; group.add(body);
+            const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.7, 3, 8), glass); canopy.rotation.x = Math.PI/2; canopy.position.set(0, 1, -1); group.add(canopy);
+            const wings = new THREE.Mesh(new THREE.BoxGeometry(10, 0.2, 4), grey); wings.position.set(0, 0, 1); group.add(wings);
+            const tailL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.5, 2), grey); tailL.position.set(1.5, 1, 3.5); tailL.rotation.z = Math.PI/8; group.add(tailL);
+            const tailR = tailL.clone(); tailR.position.set(-1.5, 1, 3.5); tailR.rotation.z = -Math.PI/8; group.add(tailR);
             const exL = new THREE.Object3D(); exL.position.set(0.8, 0, 5); group.add(exL);
             const exR = new THREE.Object3D(); exR.position.set(-0.8, 0, 5); group.add(exR);
-
-            group.castShadow = true;
-            group.userData = { exhausts: [exL, exR] };
+            group.castShadow = true; group.userData = { exhausts: [exL, exR] };
             return group;
         }
+        state.playerObj = createF18(); state.playerObj.position.set(0, 2, 400); scene.add(state.playerObj);
+        const camTarget = new THREE.Object3D(); scene.add(camTarget);
 
-        state.playerObj = createF18();
-        state.playerObj.position.set(0, 2, 400); // Start on runway
-        scene.add(state.playerObj);
-
-        // Dummy object for camera target smoothing
-        const camTarget = new THREE.Object3D();
-        scene.add(camTarget);
-
-        // --- ENEMIES & OBJECTIVES ---
+        // Enemies
         function createTarget(type, x, z) {
             const obj = new THREE.Group();
-            
             if (type === 'tower') {
-                const base = new THREE.Mesh(new THREE.BoxGeometry(15, 60, 15), new THREE.MeshPhongMaterial({color: 0x555555}));
-                base.position.y = 30;
-                const dish = new THREE.Mesh(new THREE.CylinderGeometry(1, 8, 5, 8), new THREE.MeshPhongMaterial({color: 0xaa0000}));
-                dish.rotation.x = Math.PI/2;
-                dish.position.y = 60;
-                obj.add(base, dish);
-                obj.userData = { hp: 500, type: 'tower', name: 'COMMS TOWER' };
-            } else if (type === 'bogie') {
-                const jet = createF18();
-                jet.children.forEach(c => { if(c.material) c.material = new THREE.MeshPhongMaterial({color: 0x882222}); });
-                obj.add(jet);
-                obj.userData = { hp: 50, type: 'bogie', speed: 1.5, name: 'BOGIE' };
-                obj.position.y = 200;
+                const base = new THREE.Mesh(new THREE.BoxGeometry(15, 60, 15), new THREE.MeshPhongMaterial({color: 0x555555})); base.position.y = 30;
+                const dish = new THREE.Mesh(new THREE.CylinderGeometry(1, 8, 5, 8), new THREE.MeshPhongMaterial({color: 0xaa0000})); dish.rotation.x = Math.PI/2; dish.position.y = 60;
+                obj.add(base, dish); obj.userData = { hp: 500, type: 'tower', name: 'COMMS TOWER' };
+            } else {
+                const jet = createF18(); jet.children.forEach(c => { if(c.material) c.material = new THREE.MeshPhongMaterial({color: 0x882222}); });
+                obj.add(jet); obj.userData = { hp: 50, type: 'bogie', speed: 1.5, name: 'BOGIE' }; obj.position.y = 200;
             }
-
-            obj.position.x = x;
-            obj.position.z = z;
-            scene.add(obj);
-            state.enemies.push(obj);
+            obj.position.x = x; obj.position.z = z; scene.add(obj); state.enemies.push(obj);
         }
+        createTarget('tower', 0, -1500); createTarget('bogie', -500, -800); createTarget('bogie', 500, -1200); createTarget('bogie', -800, -2000);
 
-        // Spawn stuff
-        createTarget('tower', 0, -1500);
-        createTarget('bogie', -500, -800);
-        createTarget('bogie', 500, -1200);
-        createTarget('bogie', -800, -2000);
+        // --- INPUT HANDLING (KEYBOARD & TOUCH) ---
+        
+        // 1. Keyboard Listeners
+        window.addEventListener('keydown', (e) => {
+            if(e.repeat) return;
+            switch(e.key) {
+                case 'ArrowUp': state.keys.up = true; break;
+                case 'ArrowDown': state.keys.down = true; break;
+                case 'ArrowLeft': state.keys.left = true; break;
+                case 'ArrowRight': state.keys.right = true; break;
+                case ' ': state.keys.space = true; break; // Throttle Up
+                case 'Control': state.keys.ctrl = true; break; // Throttle Down
+                case 'n': case 'N': state.keys.n = true; break; // Gun hold
+                case 'm': case 'M': fireMissile(); break; // Missile trigger
+                case 'Shift': toggleFlaps(); break;
+            }
+        });
 
-        // --- PARTICLES ---
-        function createParticle(pos, type) {
-            const geo = new THREE.PlaneGeometry(type==='fire'?4:1, type==='fire'?4:1);
-            const mat = new THREE.MeshBasicMaterial({ 
-                color: type==='fire'?0xffaa00:0xaaaaaa, 
-                transparent: true, opacity: 0.8, side: THREE.DoubleSide 
-            });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.copy(pos);
-            mesh.lookAt(camera.position); // Billboarding
-            
-            scene.add(mesh);
-            state.particles.push({ 
-                mesh: mesh, 
-                life: type==='fire'?20:40, 
-                maxLife: type==='fire'?20:40,
-                scaleDelta: type==='fire'?0.5:0.1
-            });
-        }
+        window.addEventListener('keyup', (e) => {
+            switch(e.key) {
+                case 'ArrowUp': state.keys.up = false; break;
+                case 'ArrowDown': state.keys.down = false; break;
+                case 'ArrowLeft': state.keys.left = false; break;
+                case 'ArrowRight': state.keys.right = false; break;
+                case ' ': state.keys.space = false; break;
+                case 'Control': state.keys.ctrl = false; break;
+                case 'n': case 'N': state.keys.n = false; break;
+            }
+        });
 
-        // --- INPUT HANDLING ---
+        // 2. Touch Logic
         const stick = document.getElementById('stick');
         const stickArea = document.getElementById('joystick-area');
-        
         let joyTouchId = null;
-        let throttleTouchId = null;
 
-        // Joystick
-        stickArea.addEventListener('touchstart', e => {
-            e.preventDefault();
-            const t = e.changedTouches[0];
-            joyTouchId = t.identifier;
-            handleJoy(t.clientX, t.clientY);
-        }, {passive: false});
-
-        stickArea.addEventListener('touchmove', e => {
-            e.preventDefault();
-            for(let i=0; i<e.changedTouches.length; i++) {
-                if(e.changedTouches[i].identifier === joyTouchId) {
-                    handleJoy(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
-                }
-            }
-        }, {passive: false});
-
-        const resetJoy = (e) => {
-            for(let i=0; i<e.changedTouches.length; i++) {
-                if(e.changedTouches[i].identifier === joyTouchId) {
-                    joyTouchId = null;
-                    state.inputs.x = 0; state.inputs.y = 0;
-                    stick.style.transform = `translate(-50%, -50%)`;
-                }
-            }
-        };
-        stickArea.addEventListener('touchend', resetJoy);
+        stickArea.addEventListener('touchstart', e => { e.preventDefault(); joyTouchId = e.changedTouches[0].identifier; handleJoy(e.changedTouches[0].clientX, e.changedTouches[0].clientY); }, {passive:false});
+        stickArea.addEventListener('touchmove', e => { e.preventDefault(); for(let t of e.changedTouches) if(t.identifier===joyTouchId) handleJoy(t.clientX, t.clientY); }, {passive:false});
+        stickArea.addEventListener('touchend', e => { for(let t of e.changedTouches) if(t.identifier===joyTouchId) { joyTouchId=null; state.inputs.x=0; state.inputs.y=0; stick.style.transform=`translate(-50%,-50%)`; } });
 
         function handleJoy(cx, cy) {
             const rect = stickArea.getBoundingClientRect();
-            const centerX = rect.left + rect.width/2;
-            const centerY = rect.top + rect.height/2;
-            
-            let dx = cx - centerX;
-            let dy = cy - centerY;
-            const dist = Math.sqrt(dx*dx + dy*dy);
+            let dx = cx - (rect.left + rect.width/2);
+            let dy = cy - (rect.top + rect.height/2);
+            const dist = Math.sqrt(dx*dx+dy*dy);
             const maxR = 40;
-
-            if (dist > maxR) {
-                dx = (dx/dist) * maxR;
-                dy = (dy/dist) * maxR;
-            }
-
+            if (dist > maxR) { dx = (dx/dist)*maxR; dy = (dy/dist)*maxR; }
             stick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-            
-            state.inputs.x = dx / maxR; // Roll
-            state.inputs.y = dy / maxR; // Pitch
+            state.inputs.x = dx / maxR; state.inputs.y = dy / maxR;
         }
 
-        // Throttle
         const throttleEl = document.getElementById('throttle-slider');
-        throttleEl.addEventListener('touchstart', handleThrottle, {passive: false});
-        throttleEl.addEventListener('touchmove', handleThrottle, {passive: false});
-
-        function handleThrottle(e) {
+        throttleEl.addEventListener('touchmove', e => {
             e.preventDefault();
             const rect = throttleEl.getBoundingClientRect();
-            const t = e.touches[0];
-            let val = 1.0 - ((t.clientY - rect.top) / rect.height);
-            val = Math.max(0, Math.min(1, val));
+            let val = 1.0 - ((e.touches[0].clientY - rect.top) / rect.height);
+            setThrottle(Math.max(0, Math.min(1, val)));
+        }, {passive:false});
+
+        function setThrottle(val) {
             state.throttle = val;
             document.getElementById('throttle-bar').style.height = (val*100)+'%';
             document.getElementById('throttle-knob').style.bottom = (val*100)+'%';
@@ -416,376 +285,189 @@
         }
 
         // Buttons
-        document.getElementById('btn-flaps').addEventListener('click', () => {
+        function toggleFlaps() {
             state.flaps = !state.flaps;
-            const btn = document.getElementById('btn-flaps');
-            btn.style.background = state.flaps ? '#00aa00' : '';
-        });
-        document.getElementById('btn-fire').addEventListener('touchstart', (e)=>{ e.preventDefault(); fireGun(); });
+            document.getElementById('hud-flaps').innerText = state.flaps ? "ON" : "OFF";
+            document.getElementById('btn-flaps').style.background = state.flaps ? '#00aa00' : '';
+        }
+        document.getElementById('btn-flaps').addEventListener('click', toggleFlaps);
+        document.getElementById('btn-fire').addEventListener('touchstart', (e)=>{ e.preventDefault(); state.keys.n = true; });
+        document.getElementById('btn-fire').addEventListener('touchend', (e)=>{ e.preventDefault(); state.keys.n = false; });
         document.getElementById('btn-missile').addEventListener('click', fireMissile);
-        document.getElementById('start-btn').addEventListener('click', () => {
-            document.getElementById('overlay').style.display = 'none';
-            state.flying = true;
-        });
+        document.getElementById('start-btn').addEventListener('click', () => { document.getElementById('overlay').style.display = 'none'; state.flying = true; });
 
         // --- GAME LOGIC ---
 
         function fireGun() {
             if(!state.flying) return;
-            // Spawn bullet
-            const bGeo = new THREE.BoxGeometry(0.5, 0.5, 5);
-            const bMat = new THREE.MeshBasicMaterial({color: 0xffff00});
-            const bullet = new THREE.Mesh(bGeo, bMat);
-            
-            // Offset slightly
+            const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 5), new THREE.MeshBasicMaterial({color: 0xffff00}));
             const offset = new THREE.Vector3(0, 0, -2).applyMatrix4(state.playerObj.matrixWorld);
-            bullet.position.copy(offset);
-            bullet.quaternion.copy(state.playerObj.quaternion);
-            
-            scene.add(bullet);
-            state.bullets.push({mesh: bullet, life: 60});
+            b.position.copy(offset); b.quaternion.copy(state.playerObj.quaternion);
+            scene.add(b); state.bullets.push({mesh: b, life: 60});
         }
 
         function fireMissile() {
             if(!state.flying || !state.lockedTarget) return;
-            
-            const mGeo = new THREE.ConeGeometry(0.3, 2, 8);
-            mGeo.rotateX(-Math.PI/2); // Fix geometry orientation
-            const mMat = new THREE.MeshBasicMaterial({color: 0xffffff});
-            const missile = new THREE.Mesh(mGeo, mMat);
-            
-            missile.position.copy(state.playerObj.position);
-            missile.quaternion.copy(state.playerObj.quaternion);
-            missile.translateY(-1); // Drop from wing
-            
-            scene.add(missile);
-            state.missiles.push({
-                mesh: missile, 
-                target: state.lockedTarget,
-                speed: state.speed + 0.5, // Start faster than plane
-                turnRate: 0.1,
-                life: 300 
-            });
+            const m = new THREE.Mesh(new THREE.ConeGeometry(0.3, 2, 8), new THREE.MeshBasicMaterial({color: 0xffffff}));
+            m.geometry.rotateX(-Math.PI/2);
+            m.position.copy(state.playerObj.position); m.quaternion.copy(state.playerObj.quaternion); m.translateY(-1);
+            scene.add(m);
+            state.missiles.push({ mesh: m, target: state.lockedTarget, speed: state.speed + 0.5, turnRate: 0.1, life: 300 });
+        }
+
+        function createParticle(pos, type) {
+            const geo = new THREE.PlaneGeometry(type==='fire'?4:1, type==='fire'?4:1);
+            const mat = new THREE.MeshBasicMaterial({ color: type==='fire'?0xffaa00:0xaaaaaa, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(geo, mat); mesh.position.copy(pos); mesh.lookAt(camera.position); scene.add(mesh);
+            state.particles.push({ mesh: mesh, life: type==='fire'?20:40, maxLife: type==='fire'?20:40, scaleDelta: type==='fire'?0.5:0.1 });
         }
 
         function updatePhysics() {
             const jet = state.playerObj;
 
-            // 1. Speed Dynamics
-            const targetSpd = state.throttle * CONFIG.maxSpeed;
-            if (state.speed < targetSpd) state.speed += 0.02;
-            else state.speed -= 0.01;
+            // 1. INPUT MERGING (Keyboard overrides if active)
+            let rollInput = state.inputs.x;
+            let pitchInput = state.inputs.y;
+
+            // Simple keyboard ramp for smoothness
+            if (state.keys.left) rollInput = -1; 
+            else if (state.keys.right) rollInput = 1;
             
-            // Flaps drag
+            if (state.keys.up) pitchInput = 1; // Pulling back on stick
+            else if (state.keys.down) pitchInput = -1;
+
+            // Keyboard Throttle
+            if(state.keys.space && state.throttle < 1.0) setThrottle(state.throttle + 0.01);
+            if(state.keys.ctrl && state.throttle > 0.0) setThrottle(state.throttle - 0.01);
+
+            // Gun Hold
+            if(state.keys.n && Math.random() > 0.5) fireGun(); // Simple rate limiter
+
+            // 2. PHYSICS
+            const targetSpd = state.throttle * CONFIG.maxSpeed;
+            if (state.speed < targetSpd) state.speed += 0.02; else state.speed -= 0.01;
             if(state.flaps) state.speed *= 0.99;
 
-            // 2. Rotation (Roll/Pitch)
-            // Roll
-            jet.rotateZ(-state.inputs.x * 0.04);
-            // Pitch
-            jet.rotateX(-state.inputs.y * 0.03);
-
-            // 3. Movement
+            jet.rotateZ(-rollInput * 0.04);
+            jet.rotateX(-pitchInput * 0.03);
             jet.translateZ(-state.speed);
 
-            // 4. Gravity / Lift
-            // Lift formula approximation
             const lift = (state.speed * state.speed) * (state.flaps ? 0.3 : 0.15);
-            const gravity = 0.4;
-            
-            // Apply vertical movement based on lift vs gravity
-            // We do this by moving world Y. 
-            // Note: translateZ moves based on local rotation, so if we pitch up, Z moves us up.
-            // But gravity is always global Y down.
-            jet.position.y -= (gravity - lift);
+            jet.position.y -= (0.4 - lift); // Gravity
 
-            // Floor collision
             if (jet.position.y < 2) {
-                jet.position.y = 2;
-                // Auto level if on ground
-                jet.rotation.x *= 0.9;
-                jet.rotation.z *= 0.9;
-                if(state.speed > 1) {
-                    createParticle(jet.position, 'dust');
-                }
+                jet.position.y = 2; jet.rotation.x *= 0.9; jet.rotation.z *= 0.9;
+                if(state.speed > 1) createParticle(jet.position, 'dust');
             }
-        }
-
-        function updateCamera() {
-            // Chase camera logic
-            const jet = state.playerObj;
-            
-            // Calculate ideal camera position (behind and slightly up)
-            const relativeOffset = new THREE.Vector3(0, 8, 25);
-            
-            // Camera Target (Where camera looks)
-            const lookOffset = new THREE.Vector3(0, 0, -50);
-            
-            // Transform to world space
-            const idealPos = relativeOffset.clone().applyMatrix4(jet.matrixWorld);
-            const idealLook = lookOffset.clone().applyMatrix4(jet.matrixWorld);
-
-            // Smoothly interpolate current camera position to ideal position
-            camera.position.lerp(idealPos, CONFIG.camLag);
-            
-            // Smooth lookAt using a dummy object
-            camTarget.position.lerp(idealLook, CONFIG.camLag);
-            camera.lookAt(camTarget.position);
-        }
-
-        function updateHUD() {
-            // HUD Text
-            document.getElementById('hud-spd').innerText = Math.floor(state.speed * 200);
-            document.getElementById('hud-alt').innerText = Math.floor(state.playerObj.position.y * 10);
-            
-            // Artificial Horizon (Pitch Ladder) Logic
-            const jet = state.playerObj;
-            
-            // Get Euler rotations
-            const euler = new THREE.Euler().setFromQuaternion(jet.quaternion);
-            // Note: Three.js Euler order is usually XYZ.
-            // Roll is Z (in radians), Pitch is X.
-            
-            // 1. Roll the whole ladder container opposite to plane roll
-            const rollDeg = euler.z * (180/Math.PI);
-            const pitchDeg = euler.x * (180/Math.PI);
-            
-            const ladder = document.getElementById('pitch-ladder');
-            const horizon = document.getElementById('horizon-container');
-            
-            // Rotate the container opposite to the plane
-            horizon.style.transform = `translate(-50%, -50%) rotate(${rollDeg}deg)`;
-            
-            // Slide the ladder up/down based on pitch
-            // 10 degrees pitch = X pixels. Calibrate by feel. 
-            // Say 300px = 90 degrees -> ~3.3px per degree
-            const pxPerDeg = 8;
-            const yOffset = pitchDeg * pxPerDeg;
-            
-            ladder.style.transform = `translateY(${yOffset}px)`;
         }
 
         function updateCombat() {
-            // Target Locking Logic
+            // Locking
             const jet = state.playerObj;
-            let bestTarget = null;
-            let minAngle = 0.4; // Radians, cone of view
+            let best=null, minA=0.4;
+            const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(jet.quaternion);
+            state.enemies.forEach(t => {
+                if(t.userData.hp <= 0) return;
+                const dir = new THREE.Vector3().subVectors(t.position, jet.position).normalize();
+                const a = fwd.angleTo(dir);
+                if(a < minA) { minA=a; best=t; }
+            });
+            state.lockedTarget = best;
             
-            const forward = new THREE.Vector3(0,0,-1).applyQuaternion(jet.quaternion);
+            // UI Box
+            const box = document.getElementById('target-box');
+            if(best) {
+                const p = best.position.clone().project(camera);
+                if(p.z < 1) {
+                    box.style.display = 'block';
+                    box.style.left = ((p.x*0.5+0.5)*container.clientWidth)+'px';
+                    box.style.top = (-(p.y*0.5-0.5)*container.clientHeight)+'px';
+                    box.style.borderColor = (minA<0.1)?'red':'lime';
+                    document.getElementById('hud-tgt').innerText = best.userData.name;
+                    document.getElementById('hud-dist').innerText = Math.floor(jet.position.distanceTo(best.position));
+                } else box.style.display = 'none';
+            } else { box.style.display = 'none'; document.getElementById('hud-tgt').innerText="NONE"; }
 
-            state.enemies.forEach(tgt => {
-                if(tgt.userData.hp <= 0) return;
-                
-                // Vector to target
-                const toTgt = new THREE.Vector3().subVectors(tgt.position, jet.position).normalize();
-                const angle = forward.angleTo(toTgt);
-                
-                if(angle < minAngle) {
-                    minAngle = angle;
-                    bestTarget = tgt;
+            // Update Projectiles
+            [state.bullets, state.missiles].forEach(arr => {
+                for(let i=arr.length-1; i>=0; i--) {
+                    const p = arr[i];
+                    if(p.turnRate) { // Missile logic
+                        p.mesh.translateY(p.speed);
+                        if(p.target && p.target.parent) {
+                            const tPos = p.target.position.clone();
+                            const mtx = new THREE.Matrix4().lookAt(p.mesh.position, tPos, new THREE.Vector3(0,1,0));
+                            const tQ = new THREE.Quaternion().setFromRotationMatrix(mtx).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), Math.PI/2));
+                            p.mesh.quaternion.slerp(tQ, p.turnRate);
+                        }
+                    } else { // Bullet logic
+                        p.mesh.translateZ(-10);
+                    }
+                    
+                    p.life--;
+                    let hit = false;
+                    state.enemies.forEach(e => {
+                        if(!hit && e.userData.hp > 0 && e.position.distanceTo(p.mesh.position) < (p.turnRate?20:15)) {
+                            createParticle(e.position, 'fire');
+                            e.userData.hp -= (p.turnRate?100:10);
+                            if(e.userData.hp<=0) {
+                                for(let k=0; k<10; k++) createParticle(e.position, 'fire');
+                                scene.remove(e);
+                                document.getElementById('msg-center').style.display='block';
+                                document.getElementById('msg-center').innerText="DESTROYED: "+e.userData.name;
+                                setTimeout(()=>document.getElementById('msg-center').style.display='none', 2000);
+                            }
+                            hit=true;
+                        }
+                    });
+                    if(p.life<=0 || hit) { scene.remove(p.mesh); arr.splice(i,1); }
                 }
             });
-
-            state.lockedTarget = bestTarget;
-            const box = document.getElementById('target-box');
-            
-            if(bestTarget) {
-                // Project 3D position to 2D screen
-                const p = bestTarget.position.clone();
-                p.project(camera);
-                
-                // Check if in front of camera (z < 1)
-                if(p.z < 1) {
-                    const x = (p.x * 0.5 + 0.5) * container.clientWidth;
-                    const y = -(p.y * 0.5 - 0.5) * container.clientHeight;
-                    
-                    box.style.display = 'block';
-                    box.style.left = x + 'px';
-                    box.style.top = y + 'px';
-                    box.style.borderColor = (minAngle < 0.1) ? 'red' : 'lime'; // Red if good lock
-                    document.getElementById('target-label').innerText = bestTarget.userData.name;
-                    document.getElementById('hud-tgt').innerText = bestTarget.userData.name;
-                    document.getElementById('hud-dist').innerText = Math.floor(jet.position.distanceTo(bestTarget.position));
-                } else {
-                    box.style.display = 'none';
-                }
-            } else {
-                box.style.display = 'none';
-                document.getElementById('hud-tgt').innerText = "NONE";
-                document.getElementById('hud-dist').innerText = "---";
-            }
-
-            // Projectiles
-            // Bullets
-            for(let i=state.bullets.length-1; i>=0; i--) {
-                const b = state.bullets[i];
-                b.mesh.translateZ(-10); // Very fast
-                b.life--;
-                
-                // Hit check
-                let hit = false;
-                state.enemies.forEach(e => {
-                    if(!hit && e.position.distanceTo(b.mesh.position) < 15) {
-                        createParticle(e.position, 'fire');
-                        e.userData.hp -= 10;
-                        checkKill(e);
-                        hit = true;
-                    }
-                });
-
-                if(b.life <= 0 || hit) {
-                    scene.remove(b.mesh);
-                    state.bullets.splice(i,1);
-                }
-            }
-
-            // Missiles
-            for(let i=state.missiles.length-1; i>=0; i--) {
-                const m = state.missiles[i];
-                m.mesh.translateZ(m.speed); // Missile moves forward locally (which is Z+) 
-                // Wait, geometry was rotated. Let's move along Z- of the object
-                m.mesh.translateY(m.speed); // Cones point up Y by default
-
-                if(m.target && m.target.parent) {
-                    // Homing
-                    const targetPos = m.target.position.clone();
-                    const mPos = m.mesh.position.clone();
-                    
-                    // Rotate towards target
-                    const mtx = new THREE.Matrix4().lookAt(mPos, targetPos, new THREE.Vector3(0,1,0));
-                    const targetQ = new THREE.Quaternion().setFromRotationMatrix(mtx);
-                    // Adjust because Cone geometry points Y+
-                    targetQ.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), Math.PI/2));
-                    
-                    m.mesh.quaternion.slerp(targetQ, m.turnRate);
-                }
-
-                m.life--;
-                // Hit check
-                let hit = false;
-                state.enemies.forEach(e => {
-                    if(!hit && e.position.distanceTo(m.mesh.position) < 20) {
-                        createParticle(e.position, 'fire');
-                        e.userData.hp -= 100; // Big damage
-                        checkKill(e);
-                        hit = true;
-                    }
-                });
-
-                if(m.life <=0 || hit) {
-                    scene.remove(m.mesh);
-                    state.missiles.splice(i,1);
-                }
-            }
         }
 
-        function checkKill(obj) {
-            if(obj.userData.hp <= 0) {
-                // Explosion
-                for(let k=0; k<10; k++) createParticle(obj.position, 'fire');
-                
-                const msg = document.getElementById('msg-center');
-                msg.style.display = 'block';
-                msg.innerText = "DESTROYED: " + obj.userData.name;
-                setTimeout(() => msg.style.display='none', 2000);
-
-                scene.remove(obj);
-                // Remove from array
-                const idx = state.enemies.indexOf(obj);
-                if(idx > -1) state.enemies.splice(idx, 1);
-            }
-        }
-
-        function updateVisuals() {
-            // Exhaust particles
-            if(state.speed > 0.5) {
-                state.playerObj.userData.exhausts.forEach(ex => {
-                    // World position of exhaust
-                    const p = new THREE.Vector3();
-                    ex.getWorldPosition(p);
-                    // Add particle slightly randomized
-                    p.x += (Math.random()-0.5);
-                    p.y += (Math.random()-0.5);
-                    createParticle(p, 'smoke');
-                });
-            }
-
-            // Update all particles
-            for(let i=state.particles.length-1; i>=0; i--) {
-                const p = state.particles[i];
-                p.life--;
-                const s = 1 + ((p.maxLife - p.life) * p.scaleDelta);
-                p.mesh.scale.set(s,s,s);
-                p.mesh.material.opacity = p.life / p.maxLife;
-                if(p.life<=0) {
-                    scene.remove(p.mesh);
-                    state.particles.splice(i,1);
-                }
-            }
-        }
-
-        // --- PITCH LADDER GENERATION ---
-        function createPitchLadder() {
-            const container = document.getElementById('pitch-ladder');
-            // Create lines for +90 to -90 degrees
-            // Assuming 8px per degree
-            const pxPerDeg = 8;
-            
-            for(let deg = 90; deg >= -90; deg -= 10) {
-                if (deg === 0) {
-                    const line = document.createElement('div');
-                    line.className = 'pitch-line zero-line';
-                    line.style.top = (300 - (deg * pxPerDeg)) + 'px'; // Center is 300
-                    container.appendChild(line);
-                } else {
-                    const line = document.createElement('div');
-                    line.className = 'pitch-line';
-                    line.style.top = (300 - (deg * pxPerDeg)) + 'px';
-                    // Label
-                    line.innerHTML = `<span style="position:absolute; left:-25px; top:-5px; font-size:10px; color:#0f0">${deg}</span>
-                                      <span style="position:absolute; right:-25px; top:-5px; font-size:10px; color:#0f0">${deg}</span>`;
-                    container.appendChild(line);
-                }
-            }
-        }
-        createPitchLadder();
-
-
-        // --- MAIN LOOP ---
+        // --- LOOP ---
         function animate() {
             requestAnimationFrame(animate);
-
             if(state.flying) {
                 updatePhysics();
-                updateCamera();
-                updateCombat();
-                updateVisuals();
-                updateHUD();
                 
-                // Move Bogies
-                state.enemies.forEach(e => {
-                    if(e.userData.type === 'bogie') {
-                        e.translateZ(1.0); // Move forward
-                        // Keep within bounds roughly
-                        if(e.position.distanceTo(new THREE.Vector3(0,0,0)) > 3000) {
-                            e.lookAt(0, 200, 0);
-                        }
-                    }
-                });
-            }
+                // Camera
+                const rel = new THREE.Vector3(0, 8, 25).applyMatrix4(state.playerObj.matrixWorld);
+                camera.position.lerp(rel, CONFIG.camLag);
+                camTarget.position.lerp(new THREE.Vector3(0,0,-50).applyMatrix4(state.playerObj.matrixWorld), CONFIG.camLag);
+                camera.lookAt(camTarget.position);
 
+                updateCombat();
+                
+                // Visuals
+                if(state.speed>0.5) state.playerObj.userData.exhausts.forEach(ex => { const p=new THREE.Vector3(); ex.getWorldPosition(p); createParticle(p.addScalar((Math.random()-0.5)), 'smoke'); });
+                state.particles.forEach((p,i) => {
+                    p.life--; p.mesh.scale.setScalar(1+((p.maxLife-p.life)*p.scaleDelta)); p.mesh.material.opacity=p.life/p.maxLife;
+                    if(p.life<=0){ scene.remove(p.mesh); state.particles.splice(i,1); }
+                });
+
+                // HUD
+                const euler = new THREE.Euler().setFromQuaternion(state.playerObj.quaternion);
+                document.getElementById('horizon-container').style.transform = `translate(-50%,-50%) rotate(${euler.z * (180/Math.PI)}deg)`;
+                document.getElementById('pitch-ladder').style.transform = `translateY(${euler.x * (180/Math.PI) * 8}px)`;
+                document.getElementById('hud-spd').innerText = Math.floor(state.speed*200);
+                document.getElementById('hud-alt').innerText = Math.floor(state.playerObj.position.y*10);
+
+                // AI Move
+                state.enemies.forEach(e => { if(e.userData.type==='bogie') { e.translateZ(1.0); if(e.position.length()>3000) e.lookAt(0,200,0); } });
+            }
             renderer.render(scene, camera);
         }
 
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        // Ladder Gen
+        for(let d=90; d>=-90; d-=10) {
+            const l = document.createElement('div'); l.className = d===0?'pitch-line zero-line':'pitch-line';
+            l.style.top = (300-(d*8))+'px'; if(d!==0) l.innerHTML=`<span style="position:absolute;left:-25px;color:#0f0;font-size:10px">${d}</span><span style="position:absolute;right:-25px;color:#0f0;font-size:10px">${d}</span>`;
+            document.getElementById('pitch-ladder').appendChild(l);
+        }
 
+        window.addEventListener('resize', () => { camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
         animate();
-
     </script>
 </body>
 </html>
